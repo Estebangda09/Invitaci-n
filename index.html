@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitación Digital</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Great+Vibes&family=Permanent+Marker&family=Roboto:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root { --primary: #FF8C42; --bg: #f9f9f9; --text: #333; --white: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; min-height: 100vh; }
+        .app-container { width: 100%; max-width: 480px; background: var(--white); box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding-bottom: 2rem; position: relative; }
+        
+        /* Header */
+        .header { position: sticky; top: 0; background: white; z-index: 10; padding: 1rem; border-bottom: 1px solid #eee; text-align: center; }
+        .tabs { display: flex; gap: 10px; background: #eee; padding: 5px; border-radius: 10px; margin-top: 10px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: #666; background: transparent; }
+        .tab-btn.active { background: var(--white); color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Forms */
+        .editor-section { padding: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box;}
+        /* Estilo para inputs de edición (color/tamaño) */
+        .style-control-group { display: flex; gap: 10px; }
+        .style-control-group > div { flex: 1; }
+        input[type="color"] { width: 100%; height: 35px; padding: 0; border: none; }
+        
+        input:focus { border-color: var(--primary); outline: none; }
+        
+        /* Preview */
+        .preview-section { display: none; background-color: #FFF5F0; min-height: 80vh; }
+        .preview-section.active { display: block; }
+        .hero-container { position: relative; height: 350px; overflow: hidden; }
+        .hero-img { width: 100%; height: 100%; object-fit: cover; }
+        .hero-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 20px; color: white; }
+        
+        /* Estilo base del título y transiciones para la edición */
+        .script-font { 
+            font-family: 'Great Vibes', cursive; 
+            font-size: 3.5rem; 
+            line-height: 1; 
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            /* Transiciones para suavizar los cambios de estilo */
+            transition: font-family 0.3s, font-size 0.3s, color 0.3s, text-align 0.3s;
+        }
+        
+        /* Cards */
+        .card { background: white; margin: -20px 20px 20px 20px; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; z-index: 5; }
+        .info-row { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px; }
+        .icon { font-size: 1.5rem; min-width: 30px; }
+        
+        .btn-action { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 50px; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; display: inline-block; text-align: center; font-size: 1rem; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-top: 5px;}
+        .btn-share { background: #25D366; margin-top: 20px; } /* Color WhatsApp */
+
+        /* Loading Spinner */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header" id="mainHeader">
+        <h3>Creador de Invitaciones</h3>
+        <div class="tabs">
+            <button class="tab-btn active" id="editorTab" onclick="switchTab('editor', this)">Editar</button>
+            <button class="tab-btn" id="previewTab" onclick="switchTab('preview', this)">Vista Previa</button>
+            </div>
+    </div>
+
+    <div id="editor" class="editor-section">
+        <div class="form-group" style="background: #eefbff; padding: 10px; border-radius: 8px; border: 1px solid #bceeff;">
+            <label>🔗 URL Google Script (Backend)</label>
+            <input type="text" id="inScript" placeholder="https://script.google.com/macros/s/..." onchange="saveLocal()">
+        </div>
+        
+        <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary);">Estilo del Título</h4>
+        <div class="form-group">
+            <label>Tipografía</label>
+            <select id="inFont" onchange="saveLocal()">
+                <option value="'Great Vibes', cursive">Great Vibes (Cursiva)</option>
+                <option value="'Poppins', sans-serif">Poppins (Simple)</option>
+                <option value="'Roboto', sans-serif">Roboto (Moderna)</option>
+                <option value="'Permanent Marker', cursive">Permanent Marker (Marcador)</option>
+            </select>
+        </div>
+        
+        <div class="style-control-group">
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" id="inColor" value="#FFFFFF" onchange="saveLocal()">
+            </div>
+            <div class="form-group">
+                <label>Tamaño (px)</label>
+                <input type="number" id="inSize" value="56" min="20" max="80" onchange="saveLocal()">
+            </div>
+            <div class="form-group">
+                <label>Alineación</label>
+                <select id="inAlign" onchange="saveLocal()">
+                    <option value="center">Centro</option>
+                    <option value="left">Izquierda</option>
+                    <option value="right">Derecha</option>
+                </select>
+            </div>
+        </div>
+        <h4 style="margin-top: 30px; margin-bottom: 10px;">Contenido del Evento</h4>
+        <div class="form-group"><label>Título del Evento</label><input type="text" id="inTitle" value="Cumple de Ainhoa" onchange="saveLocal()"></div>
+        <div class="form-group"><label>Fecha</label><input type="date" id="inDate" value="2026-01-11" onchange="saveLocal()"></div>
+        <div class="form-group"><label>Hora Inicio</label><input type="time" id="inTime" value="16:00" onchange="saveLocal()"></div>
+        <div class="form-group"><label>Hora Fin</label><input type="time" id="inTimeEnd" value="20:00" onchange="saveLocal()"></div>
+        <div class="form-group"><label>Nombre del Lugar</label><input type="text" id="inLocName" value="Salón Peccas" onchange="saveLocal()"></div>
+        <div class="form-group"><label>Dirección (Google Maps Link)</label><input type="text" id="inMapLink" placeholder="Pega el link de Google Maps" onchange="saveLocal()"></div>
+        <div class="form-group"><label>URL Imagen Portada</label><input type="text" id="inImg" placeholder="https://..." value="https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg" onchange="saveLocal()"></div>
+
+        <br>
+        <button class="btn-action btn-share" onclick="generateShareLink()">🔗 Generar Link para Compartir</button>
+    </div>
+
+    <div id="preview" class="preview-section">
+        <div class="hero-container">
+            <img src="" id="dispImg" class="hero-img">
+            <div class="hero-overlay" id="titleContainer">
+                <h1 class="script-font" id="dispTitle">Título</h1>
+                <p id="dispDateDisplay">Fecha</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="info-row">
+                <span class="icon">📅</span>
+                <div>
+                    <strong>¿Cuándo?</strong><br>
+                    <span id="dispFullDate">Domingo...</span><br>
+                    <span id="dispHours" style="color:var(--primary); font-weight:bold;">16:00 - 20:00 HS</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <span class="icon">📍</span>
+                <div>
+                    <strong>¿Dónde?</strong><br>
+                    <span id="dispLocName">Salón...</span>
+                </div>
+            </div>
+            <a id="btnMap" href="#" target="_blank" class="btn-action btn-outline">📍 Ver Mapa</a>
+        </div>
+
+        <div class="card" id="rsvpCard" style="margin-top: 10px;">
+            <h3 style="text-align: center; margin-bottom: 15px;">Confirmar Asistencia</h3>
+            <form id="attendanceForm" onsubmit="submitRSVP(event)">
+                <div class="form-group"><input type="text" name="invitado" placeholder="Nombre del Invitado" required></div>
+                <div class="form-group"><input type="text" name="nombreRep" placeholder="Tu Nombre (Papá/Mamá/Etc)" required></div>
+                <div class="form-group"><input type="text" name="apellidoRep" placeholder="Tu Apellido" required></div>
+                <div class="form-group"><input type="tel" name="telefono" placeholder="WhatsApp / Teléfono" required></div>
+                
+                <div class="loader" id="loader"></div>
+                <button type="submit" id="btnConfirm" class="btn-action">✅ Confirmar</button>
+            </form>
+        </div>
+
+        <div class="card hidden" id="calendarCard" style="text-align: center; background: #e8f5e9; border: 1px solid #c8e6c9;">
+            <h3 style="color: #2e7d32;">¡Confirmado! 🎉</h3>
+            <p>Te esperamos. Agéndalo:</p>
+            <a id="btnGoogleCal" target="_blank" class="btn-action">📅 Google Calendar</a>
+            <button onclick="downloadICS()" class="btn-action btn-outline">🍏 Apple / iOS</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. INICIALIZACIÓN Y DETECCIÓN DE MODO ---
+    let backendUrl = ""; 
+    const isViewMode = new URLSearchParams(window.location.search).has('data');
+
+    window.onload = function() {
+        if (isViewMode) {
+            // MODO INVITADO: Ocultar editor y decodificar datos
+            document.getElementById('mainHeader').classList.add('hidden');
+            document.getElementById('editor').classList.add('hidden');
+            document.getElementById('preview').classList.add('active');
+            loadFromURL();
+        } else {
+            // MODO EDITOR: Cargar datos guardados si los hay
+            loadLocal(); 
+            
+            // Ocultamos la vista previa al inicio en modo editor
+            document.getElementById('preview').classList.remove('active');
+            document.getElementById('editor').style.display = 'block';
+
+            // Ya que 'saveLocal' ahora llama a updatePreviewDOM, solo necesitamos
+            // asegurar que los inputs lo disparen y que la pestaña Preview lo active
+        }
+    };
+
+    // --- 2. LÓGICA DEL EDITOR ---
+
+    // CAMBIO AQUÍ: Función switchTab corregida para manejo de pestañas y actualización
+    function switchTab(tab, element) {
+        document.getElementById('editor').style.display = tab === 'editor' ? 'block' : 'none';
+        const preview = document.getElementById('preview');
+        preview.classList.toggle('active', tab !== 'editor');
+        
+        // Actualizar visualización de botones
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if (element) {
+             element.classList.add('active');
+        } else {
+             // Si se llama sin elemento (por ejemplo, desde loadFromURL), solo actualizamos la clase
+             document.getElementById(tab === 'editor' ? 'editorTab' : 'previewTab').classList.add('active');
+        }
+
+        if(tab === 'preview') {
+             updatePreviewDOM(collectData()); // <-- Esto asegura que la vista se actualice
+        }
+    }
+    // FIN CAMBIO switchTab
+
+    // 2.1 COLECTAR DATOS
+    function collectData() {
+        return {
+            script: document.getElementById('inScript').value,
+            title: document.getElementById('inTitle').value,
+            date: document.getElementById('inDate').value,
+            time: document.getElementById('inTime').value,
+            timeEnd: document.getElementById('inTimeEnd').value,
+            locName: document.getElementById('inLocName').value,
+            mapLink: document.getElementById('inMapLink').value,
+            img: document.getElementById('inImg').value,
+            // NUEVOS CAMPOS DE ESTILO
+            font: document.getElementById('inFont').value,
+            color: document.getElementById('inColor').value,
+            size: document.getElementById('inSize').value,
+            align: document.getElementById('inAlign').value
+        };
+    }
+
+    // 2.2 ACTUALIZAR VISTA PREVIA (Aplica los estilos)
+    function updatePreviewDOM(data) {
+        backendUrl = data.script; // Guardar URL del script globalmente
+        
+        const dispTitle = document.getElementById('dispTitle');
+        const titleContainer = document.getElementById('titleContainer');
+        
+        // Aplicar estilos
+        dispTitle.style.fontFamily = data.font;
+        dispTitle.style.color = data.color;
+        dispTitle.style.fontSize = data.size + 'px';
+        titleContainer.style.textAlign = data.align; // Alineación del contenedor
+
+        // Aplicar contenido
+        dispTitle.innerText = data.title;
+        document.getElementById('dispImg').src = data.img || 'https://via.placeholder.com/400x300?text=Imagen';
+        document.getElementById('dispLocName').innerText = data.locName;
+        document.getElementById('btnMap').href = data.mapLink || '#';
+        document.getElementById('dispHours').innerText = `${data.time} - ${data.timeEnd} HS`;
+
+        if(data.date) {
+            const dateObj = new Date(data.date + 'T00:00:00'); 
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            const dateStr = dateObj.toLocaleDateString('es-ES', options);
+            document.getElementById('dispFullDate').innerText = dateStr;
+            document.getElementById('dispDateDisplay').innerText = dateStr;
+        }
+
+        // Configurar botón Google Calendar
+        const gDateStart = (data.date + 'T' + data.time).replace(/[-:]/g, '');
+        const gDateEnd = (data.date + 'T' + data.timeEnd).replace(/[-:]/g, '');
+        const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(data.locName)}&details=Invitacion`;
+        document.getElementById('btnGoogleCal').href = gUrl;
+    }
+
+    // --- 3. GENERAR LINK (COMPARTIR) ---
+    function generateShareLink() {
+        const data = collectData();
+        
+        // Convertir objeto a string JSON y luego a Base64
+        const jsonString = JSON.stringify(data);
+        const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encodedData}`;
+
+        // Copiar al portapapeles
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            Swal.fire({
+                title: '¡Link Copiado!',
+                text: 'Mándaselo a tus invitados por WhatsApp',
+                icon: 'success',
+                confirmButtonColor: '#25D366'
+            });
+        });
+    }
+
+    // --- 4. CARGAR DATOS (MODO VISOR) ---
+    function loadFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        const encodedData = params.get('data');
+        if(encodedData) {
+            try {
+                const jsonString = decodeURIComponent(escape(atob(encodedData)));
+                const data = JSON.parse(jsonString);
+                
+                // Rellenar campos (aunque estén ocultos, son la fuente de datos para updatePreviewDOM)
+                document.getElementById('inScript').value = data.script || '';
+                document.getElementById('inTitle').value = data.title || '';
+                document.getElementById('inDate').value = data.date || '';
+                document.getElementById('inTime').value = data.time || '';
+                document.getElementById('inTimeEnd').value = data.timeEnd || '';
+                document.getElementById('inLocName').value = data.locName || '';
+                document.getElementById('inMapLink').value = data.mapLink || '';
+                document.getElementById('inImg').value = data.img || '';
+                document.getElementById('inFont').value = data.font || "'Great Vibes', cursive";
+                document.getElementById('inColor').value = data.color || '#FFFFFF';
+                document.getElementById('inSize').value = data.size || '56';
+                document.getElementById('inAlign').value = data.align || 'center';
+
+                updatePreviewDOM(data);
+            } catch (e) {
+                console.error("Error decodificando URL", e);
+                Swal.fire('Error', 'El link de la invitación es inválido.', 'error');
+            }
+        }
+    }
+
+    // --- 5. BACKEND & UTILS ---
+    function submitRSVP(e) {
+        e.preventDefault();
+        if(!backendUrl) { Swal.fire('Error', 'El creador no configuró la conexión', 'error'); return; }
+        
+        const form = document.getElementById('attendanceForm');
+        const btn = document.getElementById('btnConfirm');
+        const loader = document.getElementById('loader');
+
+        btn.style.display = 'none';
+        loader.style.display = 'block';
+
+        const formData = new FormData(form);
+
+        fetch(backendUrl, { method: 'POST', body: formData })
+            .then(response => {
+                loader.style.display = 'none';
+                document.getElementById('rsvpCard').classList.add('hidden');
+                document.getElementById('calendarCard').classList.remove('hidden');
+                Swal.fire('¡Listo!', 'Tu asistencia fue registrada', 'success');
+            })
+            .catch(error => {
+                loader.style.display = 'none';
+                btn.style.display = 'block';
+                Swal.fire('Error', 'No se pudo enviar', 'error');
+            });
+    }
+
+    function downloadICS() {
+        const title = document.getElementById('dispTitle').innerText;
+        const loc = document.getElementById('dispLocName').innerText;
+        Swal.fire('Descargando...', 'Abre el archivo para agendar', 'info');
+        
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:${title}\nLOCATION:${loc}\nEND:VEVENT\nEND:VCALENDAR`;
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', 'evento.ics');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Guardar borrador en el navegador del creador
+    function saveLocal() {
+        if(!isViewMode) {
+            localStorage.setItem('invitation_draft', JSON.stringify(collectData()));
+             // Si la pestaña de vista previa está activa, actualizarla al guardar
+            if(document.getElementById('preview').classList.contains('active')) {
+                 updatePreviewDOM(collectData());
+            }
+        }
+    }
+
+    // Cargar borrador en el navegador del creador
+    function loadLocal() {
+        const draft = localStorage.getItem('invitation_draft');
+        if(draft) {
+            const data = JSON.parse(draft);
+            // Cargar datos
+            document.getElementById('inScript').value = data.script || '';
+            document.getElementById('inTitle').value = data.title || 'Cumple de Ainhoa';
+            document.getElementById('inDate').value = data.date || '2026-01-11';
+            document.getElementById('inTime').value = data.time || '16:00';
+            document.getElementById('inTimeEnd').value = data.timeEnd || '20:00';
+            document.getElementById('inLocName').value = data.locName || 'Salón Peccas';
+            document.getElementById('inMapLink').value = data.mapLink || '';
+            document.getElementById('inImg').value = data.img || 'https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg';
+            // Cargar estilos
+            document.getElementById('inFont').value = data.font || "'Great Vibes', cursive";
+            document.getElementById('inColor').value = data.color || '#FFFFFF';
+            document.getElementById('inSize').value = data.size || '56';
+            document.getElementById('inAlign').value = data.align || 'center';
+
+            // Actualizar vista previa
+            updatePreviewDOM(data);
+        } else {
+            // Cargar defaults si no hay borrador
+            updatePreviewDOM(collectData());
+        }
+    }
+</script>
+
+</body>
+</html>
