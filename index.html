@@ -26,7 +26,7 @@
         input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box;}
         .style-control-group { display: flex; gap: 10px; }
         .style-control-group > div { flex: 1; }
-        input[type="color"] { width: 100%; height: 35px; padding: 0; border: none; }
+        input[type="color"] { width: 100%; height: 35px; padding: 0; border: none; cursor: pointer; }
         
         input:focus { border-color: var(--primary); outline: none; }
         
@@ -43,8 +43,11 @@
             font-size: 3.5rem; 
             line-height: 1; 
             margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            transition: font-family 0.3s, font-size 0.3s, color 0.3s, text-align 0.3s;
+            /* La sombra da profundidad, el stroke da el borde */
+            text-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            -webkit-text-stroke-width: 1.2px; /* Grosor del borde */
+            paint-order: stroke fill; /* Importante: Dibuja el borde detrás del relleno para no adelgazar la letra */
+            transition: all 0.3s;
         }
         
         /* Cards */
@@ -56,11 +59,11 @@
         .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-top: 5px;}
         .btn-share { background: #25D366; margin-top: 20px; } /* Color WhatsApp */
 
-        /* Conteo Regresivo - NUEVO CSS */
+        /* Conteo Regresivo */
         #countdownCard {
             margin-top: 10px;
             text-align: center;
-            background: #ffe0b2; /* Color suave para el timer */
+            background: #ffe0b2;
             color: #d84315;
             border: 1px solid #ffcc80;
         }
@@ -113,31 +116,35 @@
         
         <div class="style-control-group">
             <div class="form-group">
-                <label>Color</label>
+                <label>Texto</label>
                 <input type="color" id="inColor" value="#FFFFFF" onchange="saveLocal()">
             </div>
             <div class="form-group">
-                <label>Tamaño (px)</label>
-                <input type="number" id="inSize" value="56" min="20" max="80" onchange="saveLocal()">
+                <label>Borde</label>
+                <input type="color" id="inStrokeColor" value="#000000" onchange="saveLocal()">
             </div>
             <div class="form-group">
-                <label>Alineación</label>
-                <select id="inAlign" onchange="saveLocal()">
-                    <option value="center">Centro</option>
-                    <option value="left">Izquierda</option>
-                    <option value="right">Derecha</option>
-                </select>
+                <label>Tamaño</label>
+                <input type="number" id="inSize" value="56" min="20" max="80" onchange="saveLocal()">
             </div>
         </div>
+        <div class="form-group">
+            <label>Alineación</label>
+            <select id="inAlign" onchange="saveLocal()">
+                <option value="center">Centro</option>
+                <option value="left">Izquierda</option>
+                <option value="right">Derecha</option>
+            </select>
+        </div>
+
         <h4 style="margin-top: 30px; margin-bottom: 10px;">Contenido del Evento</h4>
         <div class="form-group"><label>Título del Evento</label><input type="text" id="inTitle" value="Cumple de Ainhoa" onchange="saveLocal()"></div>
         <div class="form-group"><label>Fecha</label><input type="date" id="inDate" value="2026-01-11" onchange="saveLocal()"></div>
         <div class="form-group"><label>Hora Inicio</label><input type="time" id="inTime" value="16:00" onchange="saveLocal()"></div>
         <div class="form-group"><label>Hora Fin</label><input type="time" id="inTimeEnd" value="20:00" onchange="saveLocal()"></div>
         <div class="form-group"><label>Nombre del Lugar</label><input type="text" id="inLocName" value="Salón Peccas" onchange="saveLocal()"></div>
-        <div class="form-group"><label>Dirección (Google Maps Link)</label><input type="text" id="inMapLink" placeholder="Pega el link de Google Maps. Si está vacío, se usa 'Nombre del Lugar' para buscar." onchange="saveLocal()"></div>
+        <div class="form-group"><label>Dirección (Google Maps Link)</label><input type="text" id="inMapLink" placeholder="Pega el link de Google Maps." onchange="saveLocal()"></div>
         <div class="form-group"><label>URL Imagen Portada</label><input type="text" id="inImg" placeholder="https://..." value="https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg" onchange="saveLocal()"></div>
-
         
         <button class="btn-action btn-share" onclick="generateShareLink()">🔗 Generar Link para Compartir</button>
     </div>
@@ -157,7 +164,6 @@
                 <div>
                     <strong>¿Cuándo?</strong>
                     <span id="dispFullDate">Domingo...</span>
-                    
                     <span id="dispHours" style="color:var(--primary); font-weight:bold;">16:00 - 20:00 HS</span>
                 </div>
             </div>
@@ -165,7 +171,6 @@
                 <span class="icon">📍</span>
                 <div>
                     <strong>¿Dónde?</strong>
-                    
                     <span id="dispLocName">Salón...</span>
                 </div>
             </div>
@@ -199,46 +204,35 @@
 </div>
 
 <script>
-    // --- 1. INICIALIZACIÓN Y DETECCIÓN DE MODO ---
+    // --- 1. INICIALIZACIÓN ---
     let backendUrl = "";
-    let countdownInterval; // Variable para almacenar el intervalo del contador
+    let countdownInterval;
     const isViewMode = new URLSearchParams(window.location.search).has('data');
 
     window.onload = function() {
         if (isViewMode) {
-            // MODO INVITADO: Ocultar editor y decodificar datos
             document.getElementById('mainHeader').classList.add('hidden');
             document.getElementById('editor').classList.add('hidden');
             document.getElementById('preview').classList.add('active');
             loadFromURL();
         } else {
-            // MODO EDITOR: Cargar datos guardados si los hay
             loadLocal();
-            
-            // Ocultamos la vista previa al inicio en modo editor
             document.getElementById('preview').classList.remove('active');
             document.getElementById('editor').style.display = 'block';
         }
     };
 
     // --- 2. LÓGICA DEL EDITOR ---
-
     function switchTab(tab, element) {
         document.getElementById('editor').style.display = tab === 'editor' ? 'block' : 'none';
         const preview = document.getElementById('preview');
         preview.classList.toggle('active', tab !== 'editor');
         
-        // Limpiar estilos activos en botones
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        if (element) {
-             element.classList.add('active');
-        } else {
-             document.getElementById(tab === 'editor' ? 'editorTab' : 'previewTab').classList.add('active');
-        }
+        if (element) { element.classList.add('active'); } 
+        else { document.getElementById(tab === 'editor' ? 'editorTab' : 'previewTab').classList.add('active'); }
 
-        if(tab === 'preview') {
-             updatePreviewDOM(collectData()); // Asegura que la vista se actualice
-        }
+        if(tab === 'preview') updatePreviewDOM(collectData());
     }
 
     // 2.1 COLECTAR DATOS
@@ -254,25 +248,27 @@
             img: document.getElementById('inImg').value,
             font: document.getElementById('inFont').value,
             color: document.getElementById('inColor').value,
+            strokeColor: document.getElementById('inStrokeColor').value, // NUEVO
             size: document.getElementById('inSize').value,
             align: document.getElementById('inAlign').value
         };
     }
 
-    // 2.2 ACTUALIZAR VISTA PREVIA (Aplica los estilos y lógica de mapa/agenda)
+    // 2.2 ACTUALIZAR VISTA PREVIA
     function updatePreviewDOM(data) {
-        backendUrl = data.script; // Guardar URL del script globalmente
+        backendUrl = data.script; 
         
         const dispTitle = document.getElementById('dispTitle');
         const titleContainer = document.getElementById('titleContainer');
         
-        // Aplicar estilos
+        // Estilos
         dispTitle.style.fontFamily = data.font;
         dispTitle.style.color = data.color;
+        dispTitle.style.webkitTextStrokeColor = data.strokeColor; // APLICAR BORDE
         dispTitle.style.fontSize = data.size + 'px';
         titleContainer.style.textAlign = data.align;
 
-        // Aplicar contenido
+        // Contenido
         dispTitle.innerText = data.title;
         document.getElementById('dispImg').src = data.img || 'https://via.placeholder.com/400x300?text=Imagen';
         document.getElementById('dispLocName').innerText = data.locName;
@@ -281,253 +277,54 @@
         if(data.date) {
             const dateObj = new Date(data.date + 'T00:00:00'); 
             const options = { weekday: 'long', day: 'numeric', month: 'long' };
-            // Obtenemos la fecha en minúscula
             let dateStr = dateObj.toLocaleDateString('es-ES', options);
-            
-            // CORRECCIÓN: Primera letra Mayúscula
             dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-
             document.getElementById('dispFullDate').innerText = dateStr;
             document.getElementById('dispDateDisplay').innerText = dateStr;
         }
 
-        // --- LÓGICA DE MAPA Y AGENDA (MODIFICADA) ---
         const locationQuery = encodeURIComponent(data.locName || 'Ubicación Desconocida');
-        const locationForCalendar = data.locName || 'Ubicación del Evento'; // Usamos el nombre del lugar
-
-        // 1. Botón "Ver Mapa"
+        const locationForCalendar = data.locName || 'Ubicación del Evento';
         const mapButton = document.getElementById('btnMap');
+        
         if (data.mapLink && data.mapLink.startsWith('http')) {
-            // Si el creador proporcionó un link específico
             mapButton.href = data.mapLink;
         } else {
-            // Si el link de mapa está vacío, generamos una búsqueda en Google Maps con el nombre del lugar.
             mapButton.href = `https://www.google.com/maps/search/?api=1&query=${locationQuery}`;
         }
 
-
-        // 2. Botón Google Calendar
         const gDateStart = (data.date + 'T' + data.time).replace(/[-:]/g, '');
         const gDateEnd = (data.date + 'T' + data.timeEnd).replace(/[-:]/g, '');
         const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(locationForCalendar)}&details=Invitacion`;
         document.getElementById('btnGoogleCal').href = gUrl;
         
-        // 3. Iniciar Conteo Regresivo
         startCountdown(data.date, data.time);
     }
 
-    // --- LÓGICA DEL CONTEO REGRESIVO (NUEVA FUNCIÓN) ---
+    // --- CONTEO REGRESIVO ---
     function startCountdown(date, time) {
-        if (countdownInterval) {
-            clearInterval(countdownInterval); // Detener el conteo anterior si existe
-        }
-
+        if (countdownInterval) clearInterval(countdownInterval);
         if (!date || !time) {
             document.getElementById('countdownDisplay').innerText = "Fecha/Hora no definida.";
             return;
         }
-
         const fechaObjetivo = new Date(date + 'T' + time).getTime();
         const elementoConteo = document.getElementById('countdownDisplay');
         const rsvpCard = document.getElementById('rsvpCard');
 
         const actualizarConteo = function() {
             const ahora = new Date().getTime();
-            const diferencia = fechaObjetivo - ahora; // Tiempo restante en milisegundos
-
+            const diferencia = fechaObjetivo - ahora;
             if (diferencia < 0) {
                 clearInterval(countdownInterval);
                 elementoConteo.innerText = "¡El evento ha comenzado!";
-                document.getElementById('countdownCard').style.backgroundColor = '#c8e6c9'; // Verde
+                document.getElementById('countdownCard').style.backgroundColor = '#c8e6c9'; 
                 document.getElementById('countdownCard').style.color = '#2e7d32'; 
-                // Ocultar la tarjeta de registro si el evento ya pasó
-                if(rsvpCard.classList.contains('hidden') === false) {
-                    rsvpCard.classList.add('hidden');
-                }
+                if(!rsvpCard.classList.contains('hidden')) rsvpCard.classList.add('hidden');
                 return;
             }
-
-            // Cálculos para Días, Horas, Minutos y Segundos
             const dias = Math.floor(diferencia / (1000 * 60 * 60 * 24));
             const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-
-            // Mostrar el resultado formateado
-            elementoConteo.innerHTML = 
-                `${dias}<small>d</small> | ${horas}<small>h</small> | ${minutos}<small>m</small> | ${segundos}<small>s</small>`;
-        };
-
-        actualizarConteo(); // Llamar inmediatamente
-        countdownInterval = setInterval(actualizarConteo, 1000); // Guardar el intervalo
-    }
-    // --- FIN CONTEO REGRESIVO ---
-
-
-    // --- 3. GENERAR LINK (COMPARTIR) ---
-    function generateShareLink() {
-        const data = collectData();
-        
-        // Convertir objeto a string JSON y luego a Base64
-        const jsonString = JSON.stringify(data);
-        const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
-        
-        const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encodedData}`;
-
-        // Copiar al portapapeles
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            Swal.fire({
-                title: '¡Link Copiado!',
-                text: 'Mándaselo a tus invitados por WhatsApp',
-                icon: 'success',
-                confirmButtonColor: '#25D366'
-            });
-        });
-    }
-
-    // --- 4. CARGAR DATOS (MODO VISOR) ---
-    function loadFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        const encodedData = params.get('data');
-        if(encodedData) {
-            try {
-                const jsonString = decodeURIComponent(escape(atob(encodedData)));
-                const data = JSON.parse(jsonString);
-                
-                // Rellenar campos (la fuente de datos para updatePreviewDOM)
-                document.getElementById('inScript').value = data.script || '';
-                document.getElementById('inTitle').value = data.title || '';
-                document.getElementById('inDate').value = data.date || '';
-                document.getElementById('inTime').value = data.time || '';
-                document.getElementById('inTimeEnd').value = data.timeEnd || '';
-                document.getElementById('inLocName').value = data.locName || '';
-                document.getElementById('inMapLink').value = data.mapLink || '';
-                document.getElementById('inImg').value = data.img || '';
-                document.getElementById('inFont').value = data.font || "'Great Vibes', cursive";
-                document.getElementById('inColor').value = data.color || '#FFFFFF';
-                document.getElementById('inSize').value = data.size || '56';
-                document.getElementById('inAlign').value = data.align || 'center';
-
-                updatePreviewDOM(data);
-            } catch (e) {
-                console.error("Error decodificando URL", e);
-                Swal.fire('Error', 'El link de la invitación es inválido.', 'error');
-            }
-        }
-    }
-
-    // --- 5. BACKEND & UTILS ---
-    function submitRSVP(e) {
-        e.preventDefault();
-        if(!backendUrl) { Swal.fire('Error', 'El creador no configuró la conexión', 'error'); return; }
-        
-        const form = document.getElementById('attendanceForm');
-        const btn = document.getElementById('btnConfirm');
-        const loader = document.getElementById('loader');
-
-        btn.style.display = 'none';
-        loader.style.display = 'block';
-
-        const formData = new FormData(form);
-
-        fetch(backendUrl, { method: 'POST', body: formData })
-            .then(response => {
-                loader.style.display = 'none';
-                document.getElementById('rsvpCard').classList.add('hidden');
-                document.getElementById('calendarCard').classList.remove('hidden');
-                Swal.fire('¡Listo!', 'Tu asistencia fue registrada', 'success');
-            })
-            .catch(error => {
-                loader.style.display = 'none';
-                btn.style.display = 'block';
-                Swal.fire('Error', 'No se pudo enviar', 'error');
-            });
-    }
-
-    function downloadICS() {
-        const title = document.getElementById('dispTitle').innerText;
-        const loc = document.getElementById('dispLocName').innerText;
-        
-        // Obtener fechas para el ICS
-        const data = collectData();
-        const dStart = new Date(data.date + 'T' + data.time);
-        const dEnd = new Date(data.date + 'T' + data.timeEnd);
-
-        // Formato ICS (UTC)
-        const formatICS = (d) => {
-            const pad = (n) => String(n).padStart(2, '0');
-            const year = d.getFullYear();
-            const month = pad(d.getMonth() + 1);
-            const day = pad(d.getDate());
-            const hour = pad(d.getHours());
-            const minute = pad(d.getMinutes());
-            const second = pad(d.getSeconds());
-            return `${year}${month}${day}T${hour}${minute}${second}`;
-        };
-
-        const dtstart = formatICS(dStart);
-        const dtend = formatICS(dEnd);
-        
-        Swal.fire('Descargando...', 'Abre el archivo para agendar', 'info');
-        
-        const icsContent = 
-            `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//InvitacionDigital//NONSGML v1.0//ES\n` +
-            `BEGIN:VEVENT\n` +
-            `UID:${Math.random().toString(36).substring(2)}\n` +
-            `DTSTART:${dtstart}\n` +
-            `DTEND:${dtend}\n` +
-            `SUMMARY:${title}\n` +
-            `LOCATION:${loc}\n` +
-            `END:VEVENT\n` +
-            `END:VCALENDAR`;
-            
-        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.setAttribute('download', 'evento.ics');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // Guardar borrador en el navegador del creador
-    function saveLocal() {
-        if(!isViewMode) {
-            localStorage.setItem('invitation_draft', JSON.stringify(collectData()));
-            if(document.getElementById('preview').classList.contains('active')) {
-                 updatePreviewDOM(collectData());
-            }
-        }
-    }
-
-    // Cargar borrador en el navegador del creador
-    function loadLocal() {
-        const draft = localStorage.getItem('invitation_draft');
-        if(draft) {
-            const data = JSON.parse(draft);
-            // Cargar datos
-            document.getElementById('inScript').value = data.script || '';
-            document.getElementById('inTitle').value = data.title || 'Cumple de Ainhoa';
-            document.getElementById('inDate').value = data.date || '2026-01-11';
-            document.getElementById('inTime').value = data.time || '16:00';
-            document.getElementById('inTimeEnd').value = data.timeEnd || '20:00';
-            document.getElementById('inLocName').value = data.locName || 'Salón Peccas';
-            document.getElementById('inMapLink').value = data.mapLink || '';
-            document.getElementById('inImg').value = data.img || 'https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg';
-            // Cargar estilos
-            document.getElementById('inFont').value = data.font || "'Great Vibes', cursive";
-            document.getElementById('inColor').value = data.color || '#FFFFFF';
-            document.getElementById('inSize').value = data.size || '56';
-            document.getElementById('inAlign').value = data.align || 'center';
-
-            // Actualizar vista previa
-            updatePreviewDOM(data);
-        } else {
-            // Cargar defaults si no hay borrador
-            updatePreviewDOM(collectData());
-        }
-    }
-</script>
-
-</body>
-</html>
+            elementoConteo.innerHTML = `${dias}<small>d</small> | ${horas}<small>h</small> | ${minutos}<small>m</small> | ${segundos}<small
