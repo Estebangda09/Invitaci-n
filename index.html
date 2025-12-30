@@ -13,13 +13,11 @@
         body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; min-height: 100vh; }
         .app-container { width: 100%; max-width: 480px; background: var(--white); box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding-bottom: 2rem; position: relative; }
         
-        /* Header */
         .header { position: sticky; top: 0; background: white; z-index: 10; padding: 1rem; border-bottom: 1px solid #eee; text-align: center; }
         .tabs { display: flex; gap: 10px; background: #eee; padding: 5px; border-radius: 10px; margin-top: 10px; }
         .tab-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: #666; background: transparent; }
         .tab-btn.active { background: var(--white); color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* Forms */
         .editor-section { padding: 1.5rem; }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
@@ -30,56 +28,35 @@
         
         input:focus { border-color: var(--primary); outline: none; }
         
-        /* Preview */
         .preview-section { display: none; background-color: #FFF5F0; min-height: 80vh; }
         .preview-section.active { display: block; }
         .hero-container { position: relative; height: 350px; overflow: hidden; }
         .hero-img { width: 100%; height: 100%; object-fit: cover; }
         .hero-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 20px; color: white; }
         
-        /* Estilo base del título y transiciones para la edición */
         .script-font { 
             font-family: 'Great Vibes', cursive; 
             font-size: 3.5rem; 
             line-height: 1; 
             margin-bottom: 10px;
-            /* La sombra da profundidad, el stroke da el borde */
             text-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            -webkit-text-stroke-width: 1.2px; /* Grosor del borde */
-            paint-order: stroke fill; /* Importante: Dibuja el borde detrás del relleno para no adelgazar la letra */
+            -webkit-text-stroke-width: 1.2px; 
+            paint-order: stroke fill;
             transition: all 0.3s;
         }
         
-        /* Cards */
         .card { background: white; margin: -20px 20px 20px 20px; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; z-index: 5; }
         .info-row { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px; }
         .icon { font-size: 1.5rem; min-width: 30px; }
         
         .btn-action { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 50px; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; display: inline-block; text-align: center; font-size: 1rem; }
         .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-top: 5px;}
-        .btn-share { background: #25D366; margin-top: 20px; } /* Color WhatsApp */
+        .btn-share { background: #25D366; margin-top: 20px; }
 
-        /* Conteo Regresivo */
-        #countdownCard {
-            margin-top: 10px;
-            text-align: center;
-            background: #ffe0b2;
-            color: #d84315;
-            border: 1px solid #ffcc80;
-        }
-        #countdownCard h3 {
-            color: #d84315;
-            margin-bottom: 5px;
-        }
-        #countdownDisplay {
-            font-family: 'Roboto', sans-serif;
-            font-weight: 700;
-            font-size: 1.5em;
-            display: block;
-            margin-top: 10px;
-        }
+        #countdownCard { margin-top: 10px; text-align: center; background: #ffe0b2; color: #d84315; border: 1px solid #ffcc80; }
+        #countdownCard h3 { color: #d84315; margin-bottom: 5px; }
+        #countdownDisplay { font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 1.5em; display: block; margin-top: 10px; }
 
-        /* Loading Spinner */
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -204,58 +181,78 @@
 </div>
 
 <script>
-    // --- 1. INICIALIZACIÓN ---
     let backendUrl = "";
     let countdownInterval;
     const isViewMode = new URLSearchParams(window.location.search).has('data');
 
+    // --- 1. CARGA INICIAL CON SEGURIDAD ---
     window.onload = function() {
-        if (isViewMode) {
-            document.getElementById('mainHeader').classList.add('hidden');
-            document.getElementById('editor').classList.add('hidden');
-            document.getElementById('preview').classList.add('active');
-            loadFromURL();
-        } else {
-            loadLocal();
-            document.getElementById('preview').classList.remove('active');
-            document.getElementById('editor').style.display = 'block';
+        try {
+            if (isViewMode) {
+                document.getElementById('mainHeader').classList.add('hidden');
+                document.getElementById('editor').classList.add('hidden');
+                document.getElementById('preview').classList.add('active');
+                loadFromURL();
+            } else {
+                loadLocal(); // Intenta cargar datos guardados
+                document.getElementById('preview').classList.remove('active');
+                document.getElementById('editor').style.display = 'block';
+            }
+        } catch (e) {
+            console.error("Error iniciando:", e);
+            // Si falla la carga (ej: datos corruptos), limpiamos y cargamos default
+            localStorage.removeItem('invitation_draft');
+            updatePreviewDOM(collectData());
         }
     };
 
-    // --- 2. LÓGICA DEL EDITOR ---
+    // --- 2. NAVEGACIÓN ---
     function switchTab(tab, element) {
-        document.getElementById('editor').style.display = tab === 'editor' ? 'block' : 'none';
-        const preview = document.getElementById('preview');
-        preview.classList.toggle('active', tab !== 'editor');
-        
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        if (element) { element.classList.add('active'); } 
-        else { document.getElementById(tab === 'editor' ? 'editorTab' : 'previewTab').classList.add('active'); }
+        try {
+            document.getElementById('editor').style.display = tab === 'editor' ? 'block' : 'none';
+            const preview = document.getElementById('preview');
+            preview.classList.toggle('active', tab !== 'editor');
+            
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (element) { element.classList.add('active'); } 
+            else { 
+                const btnId = tab === 'editor' ? 'editorTab' : 'previewTab';
+                if(document.getElementById(btnId)) document.getElementById(btnId).classList.add('active');
+            }
 
-        if(tab === 'preview') updatePreviewDOM(collectData());
+            if(tab === 'preview') {
+                updatePreviewDOM(collectData());
+            }
+        } catch(e) { console.error("Error switchTab", e); }
     }
 
-    // 2.1 COLECTAR DATOS
+    // --- 3. RECOLECCIÓN DE DATOS (FIX: Manejo seguro de nulos) ---
     function collectData() {
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value : '';
+        };
+
         return {
-            script: document.getElementById('inScript').value,
-            title: document.getElementById('inTitle').value,
-            date: document.getElementById('inDate').value,
-            time: document.getElementById('inTime').value,
-            timeEnd: document.getElementById('inTimeEnd').value,
-            locName: document.getElementById('inLocName').value,
-            mapLink: document.getElementById('inMapLink').value,
-            img: document.getElementById('inImg').value,
-            font: document.getElementById('inFont').value,
-            color: document.getElementById('inColor').value,
-            strokeColor: document.getElementById('inStrokeColor').value, // NUEVO
-            size: document.getElementById('inSize').value,
-            align: document.getElementById('inAlign').value
+            script: getVal('inScript'),
+            title: getVal('inTitle'),
+            date: getVal('inDate'),
+            time: getVal('inTime'),
+            timeEnd: getVal('inTimeEnd'),
+            locName: getVal('inLocName'),
+            mapLink: getVal('inMapLink'),
+            img: getVal('inImg'),
+            font: getVal('inFont'),
+            color: getVal('inColor'),
+            strokeColor: getVal('inStrokeColor'),
+            size: getVal('inSize'),
+            align: getVal('inAlign')
         };
     }
 
-    // 2.2 ACTUALIZAR VISTA PREVIA
+    // --- 4. RENDERIZADO ---
     function updatePreviewDOM(data) {
+        if(!data) return;
         backendUrl = data.script; 
         
         const dispTitle = document.getElementById('dispTitle');
@@ -264,44 +261,47 @@
         // Estilos
         dispTitle.style.fontFamily = data.font;
         dispTitle.style.color = data.color;
-        dispTitle.style.webkitTextStrokeColor = data.strokeColor; // APLICAR BORDE
+        dispTitle.style.webkitTextStrokeColor = data.strokeColor;
         dispTitle.style.fontSize = data.size + 'px';
         titleContainer.style.textAlign = data.align;
 
-        // Contenido
+        // Textos
         dispTitle.innerText = data.title;
         document.getElementById('dispImg').src = data.img || 'https://via.placeholder.com/400x300?text=Imagen';
         document.getElementById('dispLocName').innerText = data.locName;
         document.getElementById('dispHours').innerText = `${data.time} - ${data.timeEnd} HS`;
 
+        // Fecha
         if(data.date) {
-            const dateObj = new Date(data.date + 'T00:00:00'); 
-            const options = { weekday: 'long', day: 'numeric', month: 'long' };
-            let dateStr = dateObj.toLocaleDateString('es-ES', options);
-            dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-            document.getElementById('dispFullDate').innerText = dateStr;
-            document.getElementById('dispDateDisplay').innerText = dateStr;
+            try {
+                const dateObj = new Date(data.date + 'T00:00:00'); 
+                const options = { weekday: 'long', day: 'numeric', month: 'long' };
+                let dateStr = dateObj.toLocaleDateString('es-ES', options);
+                dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+                document.getElementById('dispFullDate').innerText = dateStr;
+                document.getElementById('dispDateDisplay').innerText = dateStr;
+            } catch(e) { console.error("Error fecha", e); }
         }
 
-        const locationQuery = encodeURIComponent(data.locName || 'Ubicación Desconocida');
-        const locationForCalendar = data.locName || 'Ubicación del Evento';
+        // Mapa
+        const locationQuery = encodeURIComponent(data.locName || 'Ubicación');
         const mapButton = document.getElementById('btnMap');
-        
         if (data.mapLink && data.mapLink.startsWith('http')) {
             mapButton.href = data.mapLink;
         } else {
             mapButton.href = `https://www.google.com/maps/search/?api=1&query=${locationQuery}`;
         }
 
+        // Agenda Google
         const gDateStart = (data.date + 'T' + data.time).replace(/[-:]/g, '');
         const gDateEnd = (data.date + 'T' + data.timeEnd).replace(/[-:]/g, '');
-        const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(locationForCalendar)}&details=Invitacion`;
+        const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(data.locName)}&details=Invitacion`;
         document.getElementById('btnGoogleCal').href = gUrl;
         
         startCountdown(data.date, data.time);
     }
 
-    // --- CONTEO REGRESIVO ---
+    // --- 5. CUENTA REGRESIVA ---
     function startCountdown(date, time) {
         if (countdownInterval) clearInterval(countdownInterval);
         if (!date || !time) {
@@ -327,4 +327,150 @@
             const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-            elementoConteo.innerHTML = `${dias}<small>d</small> | ${horas}<small>h</small> | ${minutos}<small>m</small> | ${segundos}<small
+            elementoConteo.innerHTML = `${dias}<small>d</small> | ${horas}<small>h</small> | ${minutos}<small>m</small> | ${segundos}<small>s</small>`;
+        };
+        actualizarConteo();
+        countdownInterval = setInterval(actualizarConteo, 1000);
+    }
+
+    // --- 6. GENERAR LINK ---
+    function generateShareLink() {
+        try {
+            const data = collectData();
+            const jsonString = JSON.stringify(data);
+            const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encodedData}`;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                Swal.fire({ title: '¡Link Copiado!', text: 'Compártelo en WhatsApp', icon: 'success', confirmButtonColor: '#25D366' });
+            });
+        } catch(e) {
+            alert("Error generando link: " + e.message);
+        }
+    }
+
+    // --- 7. CARGAR DATOS (FIX: Rellena inputs para que ICS funcione) ---
+    function loadFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        const encodedData = params.get('data');
+        if(encodedData) {
+            try {
+                const jsonString = decodeURIComponent(escape(atob(encodedData)));
+                const data = JSON.parse(jsonString);
+                
+                // IMPORTANTE: Rellenamos los inputs (aunque estén ocultos) para que downloadICS funcione
+                const setVal = (id, val) => { if(document.getElementById(id)) document.getElementById(id).value = val || ''; }
+                
+                setVal('inScript', data.script);
+                setVal('inTitle', data.title);
+                setVal('inDate', data.date);
+                setVal('inTime', data.time);
+                setVal('inTimeEnd', data.timeEnd);
+                setVal('inLocName', data.locName);
+                setVal('inMapLink', data.mapLink);
+                setVal('inImg', data.img);
+                setVal('inFont', data.font);
+                setVal('inColor', data.color);
+                setVal('inStrokeColor', data.strokeColor);
+                setVal('inSize', data.size);
+                setVal('inAlign', data.align);
+
+                updatePreviewDOM(data);
+            } catch (e) {
+                console.error("Error decodificando URL", e);
+                Swal.fire('Error', 'Link inválido.', 'error');
+            }
+        }
+    }
+
+    // --- 8. PERSISTENCIA LOCAL ---
+    function saveLocal() {
+        if(!isViewMode) {
+            const data = collectData();
+            localStorage.setItem('invitation_draft', JSON.stringify(data));
+            if(document.getElementById('preview').classList.contains('active')) updatePreviewDOM(data);
+        }
+    }
+
+    function loadLocal() {
+        try {
+            const draft = localStorage.getItem('invitation_draft');
+            if(draft) {
+                const data = JSON.parse(draft);
+                // Rellenamos inputs
+                const setVal = (id, val, def) => { 
+                    const el = document.getElementById(id); 
+                    if(el) el.value = (val !== undefined) ? val : def; 
+                }
+
+                setVal('inScript', data.script, '');
+                setVal('inTitle', data.title, 'Cumple de Ainhoa');
+                setVal('inDate', data.date, '2026-01-11');
+                setVal('inTime', data.time, '16:00');
+                setVal('inTimeEnd', data.timeEnd, '20:00');
+                setVal('inLocName', data.locName, 'Salón Peccas');
+                setVal('inMapLink', data.mapLink, '');
+                setVal('inImg', data.img, 'https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg');
+                setVal('inFont', data.font, "'Great Vibes', cursive");
+                setVal('inColor', data.color, '#FFFFFF');
+                setVal('inStrokeColor', data.strokeColor, '#000000'); // FIX: Default negro
+                setVal('inSize', data.size, '56');
+                setVal('inAlign', data.align, 'center');
+
+                updatePreviewDOM(data);
+            } else {
+                updatePreviewDOM(collectData());
+            }
+        } catch (e) {
+            console.warn("Error cargando local storage, reiniciando...", e);
+            localStorage.removeItem('invitation_draft'); // Auto-reparación
+        }
+    }
+
+    // --- 9. UTILS & BACKEND ---
+    function submitRSVP(e) {
+        e.preventDefault();
+        if(!backendUrl) { Swal.fire('Error', 'Falta configuración del creador', 'error'); return; }
+        const form = document.getElementById('attendanceForm');
+        const btn = document.getElementById('btnConfirm');
+        const loader = document.getElementById('loader');
+        btn.style.display = 'none'; loader.style.display = 'block';
+        const formData = new FormData(form);
+        fetch(backendUrl, { method: 'POST', body: formData })
+            .then(() => {
+                loader.style.display = 'none';
+                document.getElementById('rsvpCard').classList.add('hidden');
+                document.getElementById('calendarCard').classList.remove('hidden');
+                Swal.fire('¡Listo!', 'Asistencia registrada', 'success');
+            })
+            .catch(() => {
+                loader.style.display = 'none'; btn.style.display = 'block';
+                Swal.fire('Error', 'Intenta de nuevo', 'error');
+            });
+    }
+
+    function downloadICS() {
+        // Obtenemos los datos directamente de los inputs (ya rellenos por loadFromURL o loadLocal)
+        const data = collectData();
+        const title = data.title;
+        const loc = data.locName;
+        
+        // Fix de fecha inválida
+        if(!data.date || !data.time) { alert("Fecha no definida"); return; }
+
+        const dStart = new Date(data.date + 'T' + data.time);
+        const dEnd = new Date(data.date + 'T' + data.timeEnd);
+        
+        const formatICS = (d) => {
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+        };
+        
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:${title}\nLOCATION:${loc}\nDTSTART:${formatICS(dStart)}\nDTEND:${formatICS(dEnd)}\nEND:VEVENT\nEND:VCALENDAR`;
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', 'evento.ics');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
