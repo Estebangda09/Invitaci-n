@@ -156,9 +156,8 @@
                 <span class="icon">📅</span>
                 <div>
                     <strong>¿Cuándo?</strong>
-
                     <span id="dispFullDate">Domingo...</span>
-
+                    
                     <span id="dispHours" style="color:var(--primary); font-weight:bold;">16:00 - 20:00 HS</span>
                 </div>
             </div>
@@ -166,7 +165,7 @@
                 <span class="icon">📍</span>
                 <div>
                     <strong>¿Dónde?</strong>
-
+                    
                     <span id="dispLocName">Salón...</span>
                 </div>
             </div>
@@ -282,7 +281,12 @@
         if(data.date) {
             const dateObj = new Date(data.date + 'T00:00:00'); 
             const options = { weekday: 'long', day: 'numeric', month: 'long' };
-            const dateStr = dateObj.toLocaleDateString('es-ES', options);
+            // Obtenemos la fecha en minúscula
+            let dateStr = dateObj.toLocaleDateString('es-ES', options);
+            
+            // CORRECCIÓN: Primera letra Mayúscula
+            dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
             document.getElementById('dispFullDate').innerText = dateStr;
             document.getElementById('dispDateDisplay').innerText = dateStr;
         }
