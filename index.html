@@ -120,7 +120,7 @@
         <div class="form-group"><label>Hora Inicio</label><input type="time" id="inTime" value="16:00" onchange="saveLocal()"></div>
         <div class="form-group"><label>Hora Fin</label><input type="time" id="inTimeEnd" value="20:00" onchange="saveLocal()"></div>
         <div class="form-group"><label>Nombre del Lugar</label><input type="text" id="inLocName" value="Salón Peccas" onchange="saveLocal()"></div>
-        <div class="form-group"><label>Dirección (Google Maps Link)</label><input type="text" id="inMapLink" placeholder="Pega el link de Google Maps." onchange="saveLocal()"></div>
+        <div class="form-group"><label>Dirección (Link Maps)</label><input type="text" id="inMapLink" placeholder="Pega aquí el link completo de Google Maps" onchange="saveLocal()"></div>
         <div class="form-group"><label>URL Imagen Portada</label><input type="text" id="inImg" placeholder="https://..." value="https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg" onchange="saveLocal()"></div>
         
         <button class="btn-action btn-share" onclick="generateShareLink()">🔗 Generar Link para Compartir</button>
@@ -185,7 +185,7 @@
     let countdownInterval;
     const isViewMode = new URLSearchParams(window.location.search).has('data');
 
-    // --- 1. CARGA INICIAL CON SEGURIDAD ---
+    // --- 1. CARGA INICIAL ---
     window.onload = function() {
         try {
             if (isViewMode) {
@@ -194,13 +194,12 @@
                 document.getElementById('preview').classList.add('active');
                 loadFromURL();
             } else {
-                loadLocal(); // Intenta cargar datos guardados
+                loadLocal(); 
                 document.getElementById('preview').classList.remove('active');
                 document.getElementById('editor').style.display = 'block';
             }
         } catch (e) {
             console.error("Error iniciando:", e);
-            // Si falla la carga (ej: datos corruptos), limpiamos y cargamos default
             localStorage.removeItem('invitation_draft');
             updatePreviewDOM(collectData());
         }
@@ -226,7 +225,7 @@
         } catch(e) { console.error("Error switchTab", e); }
     }
 
-    // --- 3. RECOLECCIÓN DE DATOS (FIX: Manejo seguro de nulos) ---
+    // --- 3. RECOLECCIÓN DE DATOS ---
     function collectData() {
         const getVal = (id) => {
             const el = document.getElementById(id);
@@ -271,7 +270,7 @@
         document.getElementById('dispLocName').innerText = data.locName;
         document.getElementById('dispHours').innerText = `${data.time} - ${data.timeEnd} HS`;
 
-        // Fecha
+        // Fecha con mayúscula
         if(data.date) {
             try {
                 const dateObj = new Date(data.date + 'T00:00:00'); 
@@ -283,7 +282,7 @@
             } catch(e) { console.error("Error fecha", e); }
         }
 
-        // Mapa
+        // Mapa Botón (Visual)
         const locationQuery = encodeURIComponent(data.locName || 'Ubicación');
         const mapButton = document.getElementById('btnMap');
         if (data.mapLink && data.mapLink.startsWith('http')) {
@@ -292,10 +291,13 @@
             mapButton.href = `https://www.google.com/maps/search/?api=1&query=${locationQuery}`;
         }
 
-        // Agenda Google
+        // CAMBIO PRINCIPAL: Agenda Google usa el Link si existe, sino el nombre
+        // Se prioriza el link/dirección de maps sobre el nombre del lugar para el evento
+        const finalLocation = data.mapLink ? data.mapLink : data.locName;
+
         const gDateStart = (data.date + 'T' + data.time).replace(/[-:]/g, '');
         const gDateEnd = (data.date + 'T' + data.timeEnd).replace(/[-:]/g, '');
-        const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(data.locName)}&details=Invitacion`;
+        const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(data.title)}&dates=${gDateStart}/${gDateEnd}&location=${encodeURIComponent(finalLocation)}&details=Invitacion`;
         document.getElementById('btnGoogleCal').href = gUrl;
         
         startCountdown(data.date, data.time);
@@ -348,7 +350,7 @@
         }
     }
 
-    // --- 7. CARGAR DATOS (FIX: Rellena inputs para que ICS funcione) ---
+    // --- 7. CARGAR DATOS ---
     function loadFromURL() {
         const params = new URLSearchParams(window.location.search);
         const encodedData = params.get('data');
@@ -357,7 +359,6 @@
                 const jsonString = decodeURIComponent(escape(atob(encodedData)));
                 const data = JSON.parse(jsonString);
                 
-                // IMPORTANTE: Rellenamos los inputs (aunque estén ocultos) para que downloadICS funcione
                 const setVal = (id, val) => { if(document.getElementById(id)) document.getElementById(id).value = val || ''; }
                 
                 setVal('inScript', data.script);
@@ -396,7 +397,6 @@
             const draft = localStorage.getItem('invitation_draft');
             if(draft) {
                 const data = JSON.parse(draft);
-                // Rellenamos inputs
                 const setVal = (id, val, def) => { 
                     const el = document.getElementById(id); 
                     if(el) el.value = (val !== undefined) ? val : def; 
@@ -412,7 +412,7 @@
                 setVal('inImg', data.img, 'https://i.pinimg.com/736x/88/26/65/882665e8c238b975e740332304859a7f.jpg');
                 setVal('inFont', data.font, "'Great Vibes', cursive");
                 setVal('inColor', data.color, '#FFFFFF');
-                setVal('inStrokeColor', data.strokeColor, '#000000'); // FIX: Default negro
+                setVal('inStrokeColor', data.strokeColor, '#000000');
                 setVal('inSize', data.size, '56');
                 setVal('inAlign', data.align, 'center');
 
@@ -421,8 +421,8 @@
                 updatePreviewDOM(collectData());
             }
         } catch (e) {
-            console.warn("Error cargando local storage, reiniciando...", e);
-            localStorage.removeItem('invitation_draft'); // Auto-reparación
+            console.warn("Error cargando local storage", e);
+            localStorage.removeItem('invitation_draft');
         }
     }
 
@@ -449,12 +449,12 @@
     }
 
     function downloadICS() {
-        // Obtenemos los datos directamente de los inputs (ya rellenos por loadFromURL o loadLocal)
         const data = collectData();
         const title = data.title;
-        const loc = data.locName;
         
-        // Fix de fecha inválida
+        // CAMBIO PRINCIPAL: Usar Link de Maps como ubicación
+        const calendarLocation = data.mapLink ? data.mapLink : data.locName;
+        
         if(!data.date || !data.time) { alert("Fecha no definida"); return; }
 
         const dStart = new Date(data.date + 'T' + data.time);
@@ -465,7 +465,7 @@
             return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
         };
         
-        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:${title}\nLOCATION:${loc}\nDTSTART:${formatICS(dStart)}\nDTEND:${formatICS(dEnd)}\nEND:VEVENT\nEND:VCALENDAR`;
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:${title}\nLOCATION:${calendarLocation}\nDTSTART:${formatICS(dStart)}\nDTEND:${formatICS(dEnd)}\nEND:VEVENT\nEND:VCALENDAR`;
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
         const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', 'evento.ics');
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
